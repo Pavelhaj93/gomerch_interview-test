@@ -1,12 +1,6 @@
 import * as React from "react";
-import { useState, useEffect, useRef } from "react";
-import {
-  useParams,
-  Link,
-  Route,
-  Routes,
-  BrowserRouter,
-} from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, Route, Routes, BrowserRouter } from "react-router-dom";
 import styled from "styled-components";
 import { Virtuoso } from "react-virtuoso";
 
@@ -18,12 +12,9 @@ const App = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const params = useParams();
-  const loadedTime = useRef();
-
-  // fetch for ListView
+  // fetch for ListView, page state is passed to the API
   const fetchUsers = async (page) => {
-    const res = await fetch(
+    const response = await fetch(
       `https://dummyapi.io/data/v1/user?page=${page}&limit=10`,
       {
         method: "GET",
@@ -32,42 +23,49 @@ const App = () => {
         },
       }
     );
-    const data = await res.json();
+    const data = await response.json();
 
+    // creating a new array concatinating an old array with the new users fetched
     const temp = [...users].concat(data.data);
 
-    console.log("temp", temp.length);
+    console.log("Length of users ", temp.length);
     setUsers(temp);
   };
 
+  //fetchUsers for ViewList with page number 0 initialized on the first render of a page
   useEffect(() => {
-    loadedTime.current = Date.now();
     fetchUsers(0);
-  }, [page]);
+  }, []);
 
+  // on a scroll to the end it changes the page state and it calls the fetchUsers again with new page passed in
   const loadMore = async () => {
-    const current = Date.now();
-    const gap = current - loadedTime.current;
-    loadedTime.current = current;
-
-    console.log("loadMore", gap, page, users.length);
-
-    // prevents the first loadMore fetch which loaded 20 items immidietaly after the websited has loaded instead of first 10
-    if (gap < 500) return;
+    console.log("function loadMore", "page",  page, "length of users", users.length);
 
     setPage(page + 1);
     fetchUsers(page + 1);
   };
 
+  // onClick returning the user.id from the ViewList and then passing it to the id state and to the api and fetch it
   const returnId = (user) => {
     setId(user.id);
     console.log(user.id);
   };
 
+  // fetching the UserDetail item
   useEffect(() => {
     const fetchUserDetail = async (id) => {
+      // useParams did not work for me so I used window.location and its pathname
+      const idFromUrl = window.location.pathname;
+
+      // if we have an id from Url then we take it and remove the first character which is a slash "/" to prevent that there will be a double slash in API reuqest
+      if (idFromUrl) id = idFromUrl.slice(1);
+
+      // the starting state of id is null, we get the id after clicking on an user with returnId function, so we do not want to fetch the user if id is equal to null
       if (id !== null) {
+        // first we setLoading to true to show the ..loading status before data is fetched
         setLoading(true);
+
+        // fetching process
         fetch(`https://dummyapi.io/data/v1/user/${id}`, {
           method: "GET",
           headers: {
@@ -95,38 +93,44 @@ const App = () => {
     fetchUserDetail(id);
   }, [id]);
 
+
+  // Return of App.js divided to 2 styled components: ListView and Detail
   return (
     <>
       <BrowserRouter>
         <Main>
-          <ListView>
-            <Virtuoso
-              data={users}
-              data-virtuoso-scroller="true"
-              style={{ height: "100vh" }}
-              totalCount={200}
-              endReached={loadMore}
-              overscan={200}
-              itemContent={(index, user) => (
-                <VirtuosoCard>
-                  <Link to={`/${(params.userId = user.id)}`}>
-                    <Card key={index} onClick={() => returnId(user)}>
-                      <Image src={user.picture} />
-                      <span
-                        style={{ textAlign: "start", whiteSpace: "nowrap" }}
-                      >
-                        {user.firstName} {user.lastName}
-                      </span>
-                    </Card>
-                  </Link>
-                </VirtuosoCard>
-              )}
-            />
-          </ListView>
+          {users.length > 0 && (
+            <ListView>
+              <Virtuoso
+                data={users}
+                data-virtuoso-scroller="true"
+                style={{ height: "100vh" }}
+                totalCount={200}
+                endReached={loadMore}
+                overscan={200}
+                itemContent={(index, user) => (
+                  <VirtuosoCard>
+                    <Link to={`/${user.id}`}>
+                      <Card key={index} onClick={() => returnId(user)}>
+                        <Image src={user.picture} />
+                        <span
+                          style={{ textAlign: "start", whiteSpace: "nowrap" }}
+                        >
+                          {user.firstName} {user.lastName}
+                        </span>
+                      </Card>
+                    </Link>
+                  </VirtuosoCard>
+                )}
+              />
+            </ListView>
+          )}
+
           {loading && <span>..loading</span>}
+
           <Routes>
             <Route
-              path={`/${(params.userId = userDetail.id)}`}
+              path={`${userDetail.id}`}
               element={
                 !loading && (
                   <Detail key={userDetail.id}>
