@@ -183,7 +183,7 @@ const VirtuosoCard = styled.div`
     border-radius: 8px;
     border: 1px solid gray;
     width: auto;
-    height: 100px;
+    height: 95px;
     margin: 8px;
     align-items: center;
   }
