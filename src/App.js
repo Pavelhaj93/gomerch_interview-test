@@ -14,8 +14,9 @@ const App = () => {
   const [users, setUsers] = useState([]);
   const [page, setPage] = useState(0);
   const [userDetail, setUserDetail] = useState({});
-  const [id, setId] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [id, setId] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const params = useParams();
   const loadedTime = useRef();
@@ -42,7 +43,7 @@ const App = () => {
   useEffect(() => {
     loadedTime.current = Date.now();
     fetchUsers(0);
-  }, []);
+  }, [page]);
 
   const loadMore = async () => {
     const current = Date.now();
@@ -51,28 +52,12 @@ const App = () => {
 
     console.log("loadMore", gap, page, users.length);
 
-    // prevents the first loadMore fetch which loaded 20 items immidietaly after the websited has loaded
+    // prevents the first loadMore fetch which loaded 20 items immidietaly after the websited has loaded instead of first 10
     if (gap < 500) return;
 
     setPage(page + 1);
     fetchUsers(page + 1);
   };
-
-  const fetchUserDetail = async (Id) => {
-    const res = await fetch(`https://dummyapi.io/data/v1/user/${Id}`, {
-      method: "GET",
-      headers: {
-        "app-id": "627a6b9eaf56419de59a26b9",
-      },
-    }).finally(() => {
-      setLoading(false);
-    });
-    const data = await res.json();
-
-    setUserDetail(data);
-  };
-
-  // console.log(users);
 
   const returnId = (user) => {
     setId(user.id);
@@ -80,10 +65,35 @@ const App = () => {
   };
 
   useEffect(() => {
+    const fetchUserDetail = async (id) => {
+      if (id !== null) {
+        setLoading(true);
+        fetch(`https://dummyapi.io/data/v1/user/${id}`, {
+          method: "GET",
+          headers: {
+            "app-id": "627a6b9eaf56419de59a26b9",
+          },
+        })
+          .then((response) => {
+            if (response.ok) {
+              return response.json();
+            }
+            throw response;
+          })
+          .then((data) => {
+            setUserDetail(data);
+          })
+          .catch((error) => {
+            console.error("Error fetching data", error);
+            setError(error);
+          })
+          .finally(() => {
+            setLoading(false);
+          });
+      }
+    };
     fetchUserDetail(id);
   }, [id]);
-
-  const Loader = () => <span>..is Loading</span>;
 
   return (
     <>
@@ -99,7 +109,7 @@ const App = () => {
               overscan={200}
               itemContent={(index, user) => (
                 <VirtuosoCard>
-                  <Link to={`/users/${(params.userId = user.id)}`}>
+                  <Link to={`/${(params.userId = user.id)}`}>
                     <Card key={index} onClick={() => returnId(user)}>
                       <Image src={user.picture} />
                       <span
@@ -113,13 +123,12 @@ const App = () => {
               )}
             />
           </ListView>
+          {loading && <span>..loading</span>}
           <Routes>
             <Route
-              path={`/users/${(params.userId = userDetail.id)}`}
+              path={`/${(params.userId = userDetail.id)}`}
               element={
-                loading ? (
-                  <span>loading..</span>
-                ) : (
+                !loading && (
                   <Detail key={userDetail.id}>
                     <h1>
                       {userDetail.firstName} {userDetail.lastName}
